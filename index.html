@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Simple OCR with Tesseract.js</title>
+  <title>OCR with Preprocessing</title>
 </head>
 <body>
-  <h2>Character Reader (OCR)</h2>
+  <h2>Improved Character Reader (OCR)</h2>
 
   <input type="file" id="imageUpload" accept="image/*"><br><br>
   <img id="preview" style="max-width: 300px; display: none;"><br><br>
@@ -14,12 +14,16 @@
   <p><strong>Recognized Text:</strong></p>
   <div id="output" style="white-space: pre-wrap; border: 1px solid #ccc; padding: 10px;"></div>
 
-  <!-- Latest Tesseract.js (v4.0.2) -->
+  <!-- Hidden canvas for preprocessing -->
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <!-- Tesseract.js -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
 
   <script>
     const imageUpload = document.getElementById('imageUpload');
     const preview = document.getElementById('preview');
+    const canvas = document.getElementById('canvas');
     const output = document.getElementById('output');
     let selectedImage = null;
 
@@ -42,21 +46,47 @@
         return;
       }
 
-      output.innerHTML = "Reading text...";
+      output.innerHTML = "Processing image...";
 
-      try {
-        const result = await Tesseract.recognize(
-          selectedImage,
-          'eng',
-          {
-            logger: m => console.log(m)
-          }
-        );
-        output.innerHTML = result.data.text.trim();
-      } catch (err) {
-        console.error(err);
-        output.innerHTML = "Error reading text.";
-      }
+      // Create image for canvas processing
+      const img = new Image();
+      img.src = selectedImage;
+      img.onload = async () => {
+        // Resize canvas
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Get pixel data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Convert to grayscale and binarize
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          const binary = avg > 128 ? 255 : 0; // Threshold at 128
+          data[i] = data[i + 1] = data[i + 2] = binary;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        output.innerHTML = "Running OCR...";
+
+        try {
+          const result = await Tesseract.recognize(
+            canvas,
+            'eng',
+            {
+              logger: m => console.log(m)
+            }
+          );
+          output.innerHTML = result.data.text.trim();
+        } catch (err) {
+          console.error(err);
+          output.innerHTML = "Error reading text.";
+        }
+      };
     });
   </script>
 </body>
