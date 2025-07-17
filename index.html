@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple OCR with Tesseract.js</title>
+</head>
+<body>
+  <h2>Character Reader (OCR)</h2>
+
+  <input type="file" id="imageUpload" accept="image/*"><br><br>
+  <img id="preview" style="max-width: 300px; display: none;"><br><br>
+
+  <button id="readButton">Read Characters</button>
+  <p><strong>Recognized Text:</strong></p>
+  <div id="output" style="white-space: pre-wrap; border: 1px solid #ccc; padding: 10px;"></div>
+
+  <!-- Tesseract.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+  <script>
+    const imageUpload = document.getElementById('imageUpload');
+    const preview = document.getElementById('preview');
+    const output = document.getElementById('output');
+    let selectedImage = null;
+
+    imageUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        preview.src = reader.result;
+        preview.style.display = 'block';
+        selectedImage = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('readButton').addEventListener('click', () => {
+      if (!selectedImage) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      output.innerHTML = "Reading text...";
+
+      Tesseract.recognize(
+        selectedImage,
+        'eng',
+        { logger: m => console.log(m) }
+      ).then(({ data: { text } }) => {
+        output.innerHTML = text.trim();
+      }).catch(err => {
+        console.error(err);
+        output.innerHTML = "Error reading text.";
+      });
+    });
+  </script>
+</body>
+</html>
